@@ -115,15 +115,13 @@ for method in ["kaplan", "nelson", "cox"]:
         train_df.rename(columns={"target": "labels"}, inplace=True)
         val_df.rename(columns={"target": "labels"}, inplace=True)
 
-        tokenizer = AutoTokenizer.from_pretrained("microsoft/deberta-v3-base")
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
         train_df["len_text"] = train_df["text"].apply(lambda x: len(tokenizer.encode(x, add_special_tokens=False)))
         val_df["len_text"] = val_df["text"].apply(lambda x: len(tokenizer.encode(x, add_special_tokens=False)))
         print(train_df["len_text"].describe())
         print(val_df["len_text"].describe())
         train_df.drop(columns=["len_text"], inplace=True)
         val_df.drop(columns=["len_text"], inplace=True)
-
-        tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
         def tokenize(sample):
             return tokenizer(sample["text"], max_length=MAX_LENGTH, truncation=True)
