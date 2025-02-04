@@ -3,11 +3,13 @@ import numpy as np
 import torch
 import wandb
 import yaml
+import warnings
 from datasets import Dataset
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import mean_squared_error
 from lifelines import KaplanMeierFitter, CoxPHFitter, NelsonAalenFitter
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, TrainingArguments, Trainer
+warnings.filterwarnings("ignore")
 
 with open("../config.yaml", "r") as file:
     config = yaml.safe_load(file)
@@ -101,10 +103,12 @@ for method in ["kaplan", "nelson", "cox"]:
     for i, (train_index, val_index) in enumerate(skf.split(train_copy, train_copy["race_group"])):
         train_copy.loc[val_index, "fold"] = int(i)
 
-    for fold in range(0.0, 10.0, 1.0):
-        train_df = train_copy[train_copy["fold"] != fold]
+    for fold in range(0, 10):
+        print(f"Method: {method}, Fold: {fold}")
+
+        train_df = train_copy[train_copy["fold"] != float(fold)]
         train_df = train_df[["text", "target"]].sample(frac=1.0, random_state=42)
-        val_df = train_copy[train_copy["fold"] == fold]
+        val_df = train_copy[train_copy["fold"] == float(fold)]
         val_df = val_df[["text", "target"]].sample(frac=1.0, random_state=42)
         print(f"Train shape: {train_df.shape}, Val shape: {val_df.shape}")
 
@@ -165,7 +169,7 @@ for method in ["kaplan", "nelson", "cox"]:
         run = wandb.init(project=f"CIB-{MODEL_NAME.split('/')[-1]}-{method}", job_type="training", anonymous="allow")
 
         training_args = TrainingArguments(
-            output_dir=f"{MODEL_NAME.split('/')[-1]}-{method}/Fold{int(fold)}",
+            output_dir=f"{MODEL_NAME.split('/')[-1]}-{method}/Fold{fold}",
             bf16=True if torch.cuda.is_bf16_supported() else False,
             fp16=False if torch.cuda.is_bf16_supported() else True,
             learning_rate=LEARNING_RATE,
