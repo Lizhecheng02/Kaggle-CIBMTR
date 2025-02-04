@@ -1,3 +1,9 @@
 pandas
 lifelines
 scikit-learn
+transformers
+datasets
+wandb
+sentencepiece
+accelerate
+bitsandbytes
