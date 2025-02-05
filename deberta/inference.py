@@ -50,8 +50,9 @@ tokenizer = AutoTokenizer.from_pretrained(model_path)
 model = AutoModelForSequenceClassification.from_pretrained(model_path)
 
 input_text = ["This is a sample sentence for the model."]
-inputs = tokenizer(input_text, return_tensors="pt", padding=True, truncation=True)
+inputs = tokenizer(input_text, return_tensors="pt", padding=True, truncation=True, max_length=520)
 with torch.no_grad():
     outputs = model.deberta(**inputs)
     pooled_output = model.pooler(outputs.last_hidden_state)
+print(pooled_output)
 print(pooled_output.shape)
