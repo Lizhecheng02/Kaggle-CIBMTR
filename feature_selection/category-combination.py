@@ -101,7 +101,6 @@ all_cat_cols = cat_cols + combined_cat_cols
 for col in all_cat_cols:
     le = LabelEncoder()
     train[col] = le.fit_transform(train[col].astype(str))
-
 print(train.shape)
 
 # use only original features to train the model
@@ -139,7 +138,6 @@ original_fold_scores = np.mean(fold_scores)
 
 # add new features one by one
 comparison = {}
-
 for new_feature in tqdm(combined_cat_cols, total=len(combined_cat_cols)):
     print("Add:", new_feature)
     TEMP_FEATURE = FEATURES + [new_feature]

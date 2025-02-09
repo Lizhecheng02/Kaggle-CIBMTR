@@ -7,3 +7,5 @@ wandb
 sentencepiece
 accelerate
 bitsandbytes
+lightgbm
+tqdm
