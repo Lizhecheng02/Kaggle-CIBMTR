@@ -53,12 +53,12 @@ def update(df):
 
 
 template_full = """
-The patient is {age_at_hct} years old at the time of hematopoietic cell transplantation (HCT), with a donor aged {donor_age} years. The patient"s disease history includes {prim_disease_hct}, along with a {prior_tumor} history of tumors.
+The patient is {age_at_hct} years old at the time of hematopoietic cell transplantation (HCT), with a donor aged {donor_age} years. The patient's disease history includes {prim_disease_hct}, along with a {prior_tumor} history of tumors.
 Their health profile is marked by a {dri_score} DRI score, presence of {psych_disturb} psychological disturbances, and a {cyto_score} cytogenetic score. The patient also suffers from chronic conditions including {diabetes} diabetes, {arrhythmia} arrhythmia, {renal_issue} renal issues, and {pulm_severe} severe pulmonary problems.
 In terms of immunological status, the patient exhibits {hla_match_c_high} high HLA matching for C, {hla_high_res_8} high-resolution 8, and {hla_match_dqb1_high} high HLA-DQB1 matching, as well as {hla_high_res_6} high-resolution 6. Additional immunological markers include {tbi_status} TBI status, {hla_low_res_6} low HLA-C resolution 6, and {cmv_status} CMV status.
 Treatment history reveals the administration of {rituximab} rituximab, with the graft type classified as {graft_type}. The patient has a {vent_hist} history of ventilation, alongside {hla_match_drb1_low} low HLA-DRB1 matching and {hla_match_dqb1_low} low HLA-DQB1 matching.
-Further health assessments include {cyto_score_detail} cytogenetic score details and {conditioning_intensity} conditioning intensity. The patient"s demographic details note a race group of {race_group}, ethnicity of {ethnicity}, and {sex_match} sex match with the donor. Functional status is indicated by a {karnofsky_score} Karnofsky score and a comorbidity score of {comorbidity_score}, reflecting overall health.
-The patient"s condition is impacted by {hepatic_severe} severe hepatic issues, {hepatic_mild} mild hepatic issues, and {pulm_moderate} moderate pulmonary issues. They also have {mrd_hct} MRD status at HCT, {tce_div_match} TCE diversity match, and {tce_match} TCE match.
+Further health assessments include {cyto_score_detail} cytogenetic score details and {conditioning_intensity} conditioning intensity. The patient's demographic details note a race group of {race_group}, ethnicity of {ethnicity}, and {sex_match} sex match with the donor. Functional status is indicated by a {karnofsky_score} Karnofsky score and a comorbidity score of {comorbidity_score}, reflecting overall health.
+The patient's condition is impacted by {hepatic_severe} severe hepatic issues, {hepatic_mild} mild hepatic issues, and {pulm_moderate} moderate pulmonary issues. They also have {mrd_hct} MRD status at HCT, {tce_div_match} TCE diversity match, and {tce_match} TCE match.
 Treatment specifics include a {melphalan_dose} melphalan dose, {in_vivo_tcd} in-vivo T-cell depletion (TCD) treatment, and {gvhd_proph} graft-versus-host disease (GVHD) prophylaxis. Disease progression is influenced by {rheum_issue} rheumatic issues, {obesity} obesity, and {cardiac} cardiac health.
 The patient underwent HCT in {year_hct}, with a treatment strategy that includes {prod_type} production type and {tce_imm_match} TCE immune match. Notably, {donor_related} donor-related issues have been observed.
 Additional HLA details show {hla_high_res_10} high-resolution 10, {hla_match_c_low} low HLA matching for C, {hla_match_a_high} high HLA-A matching, {hla_match_b_low} low HLA-B matching, {hla_match_a_low} low HLA-A matching, and {hla_match_b_high} high HLA-B matching. Treatment history also notes {peptic_ulcer} peptic ulcer, {hla_low_res_8} low HLA resolution 8, and {hla_low_res_10} low HLA resolution 10. 
@@ -142,8 +142,8 @@ class CustomTrainer(Trainer):
         return (loss, outputs) if return_outputs else loss
 
 
-MAX_LENGTH = 520
-MODEL_NAME = "google/gemma-2-2b-it"
+MAX_LENGTH = 684
+MODEL_NAME = "google/gemma-2-2b"
 LORA_R = 32
 LORA_ALPHA = 64
 LORA_DROPOUT = 0.05
@@ -160,7 +160,7 @@ LR_SCHEDULER = "cosine"
 
 train_copy = train.copy()
 train_copy = update(train_copy)
-train_copy["text"] = train_copy.apply(template_full, axis=1)
+train_copy["text"] = train_copy.apply(fill_template, axis=1)
 
 skf = StratifiedKFold(n_splits=10, random_state=42, shuffle=True)
 for i, (train_index, val_index) in enumerate(skf.split(train_copy, train_copy["race_group"])):
@@ -213,7 +213,7 @@ for i, (train_index, val_index) in enumerate(skf.split(train_copy, train_copy["r
 
         model = AutoModelForSequenceClassification.from_pretrained(
             MODEL_NAME,
-            quantize_bnb=bnb_config,
+            quantization_config=bnb_config,
             num_labels=2,
             trust_remote_code=True,
             token=huggingface_api_key,

@@ -9,3 +9,4 @@ accelerate
 bitsandbytes
 lightgbm
 tqdm
+peft
