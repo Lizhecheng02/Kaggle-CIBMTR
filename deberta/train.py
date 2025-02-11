@@ -7,7 +7,7 @@ import warnings
 from datasets import Dataset
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import mean_squared_error
-from lifelines import KaplanMeierFitter, CoxPHFitter, NelsonAalenFitter
+from lifelines import KaplanMeierFitter, NelsonAalenFitter
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, TrainingArguments, Trainer
 warnings.filterwarnings("ignore")
 
@@ -45,13 +45,7 @@ def update_target_with_survival_probabilities(df, method="kaplan", time_col="efs
             naf.fit(durations=X_trn[time_col], event_observed=X_trn[event_col])
             res[val_idx] = -naf.cumulative_hazard_at_times(X_val[time_col]).values
         else:
-            data_trn = pd.get_dummies(X_trn, columns=cat_cols, drop_first=True).drop("ID", axis=1)
-            data_val = pd.get_dummies(X_val, columns=cat_cols, drop_first=True).drop("ID", axis=1)
-            train_data = data_trn.loc[:, data_trn.nunique() > 1]
-            valid_data = data_val[train_data.columns]
-            cph = CoxPHFitter(penalizer=0.01)
-            cph.fit(train_data, duration_col=time_col, event_col=event_col)
-            res[val_idx] = cph.predict_partial_hazard(valid_data).values
+            print("Method not supported")
     df["target"] = res
     df.loc[df[event_col] == 0, "target"] -= 0.15
     return df
@@ -93,7 +87,7 @@ SAVE_TOTAL_LIMIT = 10
 LR_SCHEDULER = "cosine"
 
 
-for method in ["kaplan", "nelson", "cox"]:
+for method in ["kaplan", "nelson"]:
     train_copy = train.copy()
     train_copy = update_target_with_survival_probabilities(train_copy, method=method, time_col="efs_time", event_col="efs")
     train_copy = update(train_copy)
