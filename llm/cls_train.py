@@ -166,144 +166,144 @@ skf = StratifiedKFold(n_splits=10, random_state=42, shuffle=True)
 for i, (train_index, val_index) in enumerate(skf.split(train_copy, train_copy["race_group"])):
     train_copy.loc[val_index, "fold"] = int(i)
 
-    for fold in range(0, 10):
-        print(f"Fold: {fold}")
+for fold in range(0, 10):
+    print(f"Fold: {fold}")
 
-        train_df = train_copy[train_copy["fold"] != float(fold)]
-        train_df = train_df[["text", "efs"]].sample(frac=1.0, random_state=42)
-        val_df = train_copy[train_copy["fold"] == float(fold)]
-        val_df = val_df[["text", "efs"]].sample(frac=1.0, random_state=42)
-        print(f"Train shape: {train_df.shape}, Val shape: {val_df.shape}")
+    train_df = train_copy[train_copy["fold"] != float(fold)]
+    train_df = train_df[["text", "efs"]].sample(frac=1.0, random_state=42)
+    val_df = train_copy[train_copy["fold"] == float(fold)]
+    val_df = val_df[["text", "efs"]].sample(frac=1.0, random_state=42)
+    print(f"Train shape: {train_df.shape}, Val shape: {val_df.shape}")
 
-        train_df.rename(columns={"efs": "labels"}, inplace=True)
-        val_df.rename(columns={"efs": "labels"}, inplace=True)
+    train_df.rename(columns={"efs": "labels"}, inplace=True)
+    val_df.rename(columns={"efs": "labels"}, inplace=True)
 
-        tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, token=huggingface_api_key)
-        train_df["len_text"] = train_df["text"].apply(lambda x: len(tokenizer.encode(x, add_special_tokens=False)))
-        val_df["len_text"] = val_df["text"].apply(lambda x: len(tokenizer.encode(x, add_special_tokens=False)))
-        print(train_df["len_text"].describe())
-        print(val_df["len_text"].describe())
-        train_df.drop(columns=["len_text"], inplace=True)
-        val_df.drop(columns=["len_text"], inplace=True)
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, token=huggingface_api_key)
+    train_df["len_text"] = train_df["text"].apply(lambda x: len(tokenizer.encode(x, add_special_tokens=False)))
+    val_df["len_text"] = val_df["text"].apply(lambda x: len(tokenizer.encode(x, add_special_tokens=False)))
+    print(train_df["len_text"].describe())
+    print(val_df["len_text"].describe())
+    train_df.drop(columns=["len_text"], inplace=True)
+    val_df.drop(columns=["len_text"], inplace=True)
 
-        def tokenize(sample):
-            return tokenizer(sample["text"], max_length=MAX_LENGTH, truncation=True)
+    def tokenize(sample):
+        return tokenizer(sample["text"], max_length=MAX_LENGTH, truncation=True)
 
-        ds_train = Dataset.from_pandas(train_df)
-        ds_val = Dataset.from_pandas(val_df)
+    ds_train = Dataset.from_pandas(train_df)
+    ds_val = Dataset.from_pandas(val_df)
 
-        ds_train = ds_train.map(tokenize).remove_columns(["text"])
-        ds_val = ds_val.map(tokenize).remove_columns(["text"])
+    ds_train = ds_train.map(tokenize).remove_columns(["text"])
+    ds_val = ds_val.map(tokenize).remove_columns(["text"])
 
-        label_counts = train_df["labels"].value_counts()
-        label_weights = {}
-        for label in range(2):
-            if label in label_counts:
-                label_weights[label] = 1.0 / label_counts[label] * len(train_df)
-            else:
-                label_weights[label] = 0.0
-        print(label_weights)
+    label_counts = train_df["labels"].value_counts()
+    label_weights = {}
+    for label in range(2):
+        if label in label_counts:
+            label_weights[label] = 1.0 / label_counts[label] * len(train_df)
+        else:
+            label_weights[label] = 0.0
+    print(label_weights)
 
-        bnb_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_use_double_quant=True,
-            bnb_4bit_compute_dtype=torch.float16
-        )
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_compute_dtype=torch.float16
+    )
 
-        model = AutoModelForSequenceClassification.from_pretrained(
-            MODEL_NAME,
-            quantization_config=bnb_config,
-            num_labels=2,
-            trust_remote_code=True,
-            token=huggingface_api_key,
-            device_map="auto"
-        )
+    model = AutoModelForSequenceClassification.from_pretrained(
+        MODEL_NAME,
+        quantization_config=bnb_config,
+        num_labels=2,
+        trust_remote_code=True,
+        token=huggingface_api_key,
+        device_map="auto"
+    )
 
-        print(model.config.pad_token_id)
-        model.config.pad_token_id = model.config.eos_token_id
-        print(model.config.pad_token_id)
+    print(model.config.pad_token_id)
+    model.config.pad_token_id = model.config.eos_token_id
+    print(model.config.pad_token_id)
 
-        model = prepare_model_for_kbit_training(model)
+    model = prepare_model_for_kbit_training(model)
 
-        lora_config = LoraConfig(
-            r=LORA_R,
-            lora_alpha=LORA_ALPHA,
-            lora_dropout=LORA_DROPOUT,
-            task_type=TaskType.SEQ_CLS,
-            target_modules=[
-                "q_proj", "k_proj", "v_proj",
-                "up_proj", "down_proj"
+    lora_config = LoraConfig(
+        r=LORA_R,
+        lora_alpha=LORA_ALPHA,
+        lora_dropout=LORA_DROPOUT,
+        task_type=TaskType.SEQ_CLS,
+        target_modules=[
+            "q_proj", "k_proj", "v_proj",
+            "up_proj", "down_proj"
+        ]
+    )
+
+    lora_model = get_peft_model(model, lora_config)
+    print(lora_model.print_trainable_parameters())
+
+    class DataCollator:
+        def __call__(self, features):
+            model_inputs = [
+                {
+                    "input_ids": feature["input_ids"],
+                    "attention_mask": feature["attention_mask"],
+                    "labels": feature["labels"]
+                } for feature in features
             ]
-        )
+            batch = tokenizer.pad(
+                model_inputs,
+                padding="max_length",
+                max_length=MAX_LENGTH,
+                return_tensors="pt",
+                pad_to_multiple_of=8
+            )
+            return batch
 
-        lora_model = get_peft_model(model, lora_config)
-        print(lora_model.print_trainable_parameters())
+    def compute_metrics(p):
+        preds, labels = p
+        preds = preds.argmax(-1)
+        score = f1_score(labels, preds, average="macro")
+        return {"macro_f1": score}
 
-        class DataCollator:
-            def __call__(self, features):
-                model_inputs = [
-                    {
-                        "input_ids": feature["input_ids"],
-                        "attention_mask": feature["attention_mask"],
-                        "labels": feature["labels"]
-                    } for feature in features
-                ]
-                batch = tokenizer.pad(
-                    model_inputs,
-                    padding="max_length",
-                    max_length=MAX_LENGTH,
-                    return_tensors="pt",
-                    pad_to_multiple_of=8
-                )
-                return batch
+    wandb.login(key=wandb_api_key)
+    run = wandb.init(project=f"CIB-{MODEL_NAME.split('/')[-1]}-CLS", job_type="training", anonymous="allow")
 
-        def compute_metrics(p):
-            preds, labels = p
-            preds = preds.argmax(-1)
-            score = f1_score(labels, preds, average="macro")
-            return {"macro_f1": score}
+    training_args = TrainingArguments(
+        output_dir=f"{MODEL_NAME.split('/')[-1]}-CLS/Fold{fold}",
+        bf16=True if torch.cuda.is_bf16_supported() else False,
+        fp16=False if torch.cuda.is_bf16_supported() else True,
+        learning_rate=LEARNING_RATE,
+        per_device_train_batch_size=BATCH_SIZE,
+        per_device_eval_batch_size=BATCH_SIZE * 2,
+        gradient_accumulation_steps=ACCUMULATION_STEPS,
+        warmup_ratio=WARMUP_RATIO,
+        num_train_epochs=EPOCHS,
+        weight_decay=WEIGHT_DECAY,
+        do_eval=True,
+        evaluation_strategy="steps",
+        eval_steps=STEPS,
+        save_total_limit=SAVE_TOTAL_LIMIT,
+        save_strategy="steps",
+        save_steps=STEPS,
+        logging_steps=STEPS,
+        load_best_model_at_end=True,
+        metric_for_best_model="eval_macro_f1",
+        greater_is_better=True,
+        save_only_model=True,
+        lr_scheduler_type=LR_SCHEDULER,
+        gradient_checkpointing=False,
+        report_to="wandb"
+    )
 
-        wandb.login(key=wandb_api_key)
-        run = wandb.init(project=f"CIB-{MODEL_NAME.split('/')[-1]}-CLS", job_type="training", anonymous="allow")
+    trainer = CustomTrainer(
+        model=lora_model,
+        args=training_args,
+        train_dataset=ds_train,
+        eval_dataset=ds_val,
+        tokenizer=tokenizer,
+        data_collator=DataCollator(),
+        compute_metrics=compute_metrics,
+        label_weights=label_weights
+    )
 
-        training_args = TrainingArguments(
-            output_dir=f"{MODEL_NAME.split('/')[-1]}-CLS/Fold{fold}",
-            bf16=True if torch.cuda.is_bf16_supported() else False,
-            fp16=False if torch.cuda.is_bf16_supported() else True,
-            learning_rate=LEARNING_RATE,
-            per_device_train_batch_size=BATCH_SIZE,
-            per_device_eval_batch_size=BATCH_SIZE * 2,
-            gradient_accumulation_steps=ACCUMULATION_STEPS,
-            warmup_ratio=WARMUP_RATIO,
-            num_train_epochs=EPOCHS,
-            weight_decay=WEIGHT_DECAY,
-            do_eval=True,
-            evaluation_strategy="steps",
-            eval_steps=STEPS,
-            save_total_limit=SAVE_TOTAL_LIMIT,
-            save_strategy="steps",
-            save_steps=STEPS,
-            logging_steps=STEPS,
-            load_best_model_at_end=True,
-            metric_for_best_model="eval_macro_f1",
-            greater_is_better=True,
-            save_only_model=True,
-            lr_scheduler_type=LR_SCHEDULER,
-            gradient_checkpointing=False,
-            report_to="wandb"
-        )
-
-        trainer = CustomTrainer(
-            model=lora_model,
-            args=training_args,
-            train_dataset=ds_train,
-            eval_dataset=ds_val,
-            tokenizer=tokenizer,
-            data_collator=DataCollator(),
-            compute_metrics=compute_metrics,
-            label_weights=label_weights
-        )
-
-        trainer.train()
-        wandb.finish()
+    trainer.train()
+    wandb.finish()
