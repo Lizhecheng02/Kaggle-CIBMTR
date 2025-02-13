@@ -10,3 +10,5 @@ bitsandbytes
 lightgbm
 tqdm
 peft
+kaggle
+torch

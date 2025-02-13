@@ -8,6 +8,7 @@ from lifelines import KaplanMeierFitter, NelsonAalenFitter
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, BitsAndBytesConfig
 from peft import PeftModel
 from tqdm import tqdm
+from torch.nn.functional import softmax
 warnings.filterwarnings("ignore")
 
 with open("../config.yaml", "r") as file:
@@ -157,7 +158,7 @@ bnb_config = BitsAndBytesConfig(
 model = AutoModelForSequenceClassification.from_pretrained(
     MODEL_NAME,
     quantization_config=bnb_config,
-    num_labels=1,
+    num_labels=2,
     trust_remote_code=True,
     token=huggingface_api_key,
     device_map="auto"
@@ -176,7 +177,8 @@ with torch.no_grad():
     for test_text in tqdm(test_texts, total=len(test_texts)):
         features = []
         input = tokenizer(test_text, return_tensors="pt", padding=True, truncation=True, max_length=684).to(DEVICE)
-        output = lora_model(**input).logits.cpu().numpy()
+        output = lora_model(**input).logits
+        output = softmax(output, dim=-1).cpu().numpy()
         outputs.append(output)
 outputs = np.vstack(outputs)
 print(outputs)
