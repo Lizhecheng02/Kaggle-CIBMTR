@@ -166,6 +166,7 @@ print(model.config.pad_token_id)
 model.config.pad_token_id = model.config.eos_token_id
 print(model.config.pad_token_id)
 
+# inference single model
 lora_adapter_path = ""
 lora_model = PeftModel.from_pretrained(model=model, model_id=lora_adapter_path)
 
@@ -180,3 +181,25 @@ with torch.no_grad():
         outputs.append(output)
 outputs = np.vstack(outputs)
 print(outputs)
+
+# inference multiple models
+lora_adapter_paths = []
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+test_texts = test["text"].to_list()
+
+text_model_outputs = np.zeros((len(test_texts), len(lora_adapter_paths)))
+
+for model_idx, lora_path in enumerate(tqdm(lora_adapter_paths, desc="Models")):
+    lora_model = PeftModel.from_pretrained(model=model, model_id=lora_path)
+    lora_model.to(DEVICE)
+
+    with torch.no_grad():
+        for text_idx, test_text in enumerate(tqdm(test_texts, desc="Texts", leave=False)):
+            input = tokenizer(test_text, return_tensors="pt", padding=True, truncation=True, max_length=684).to(DEVICE)
+            output = lora_model(**input).logits.cpu().numpy()
+            text_model_outputs[text_idx, model_idx] = output
+
+    del lora_model
+    torch.cuda.empty_cache()
+
+print(text_model_outputs.shape)
