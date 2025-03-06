@@ -13,6 +13,8 @@ pip install --upgrade -r requirements.txt
 ```bash
 wandb:
   api_key: "YOUR_WANDB_API_KEY"
+huggingface:
+  api_key: "YOUR_HUGGINGFACE_API_KEY"
 ```
 
 #### Prepare Datasets
@@ -31,3 +33,12 @@ sudo apt install unzip
 kaggle competitions download -c equity-post-HCT-survival-predictions
 unzip equity-post-HCT-survival-predictions.zip
 ```
+
+#### Submissions
+
+The best final submissions are located in the ``submissions`` folder.
+
+#### Conclusion
+
+(1) The NLP-based method does not work for this competition.
+(2) Feature selection does not work very well, probably because there is a lot of synthetic data in the training dataset.
