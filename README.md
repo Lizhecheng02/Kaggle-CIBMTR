@@ -47,13 +47,13 @@ The best final submissions are located in the ``submissions`` folder.
 - The NLP-based method does not work for this competition.
 - Feature selection does not work very well, probably because there is a lot of synthetic data in the training dataset.
 
-
+---------------------------------------------------------------------------------------------------------------------------------------
 
 ### 24th Solution: Ensemble and Post-Processing
 
-First, congratulations to the competition winners, and sincere thanks to my team members who worked hard over the past three months, as well as the competition organizers. Here, I present a summary of our solution (24th place, LB score: 0.694).
+First, congratulations to the competition winners, and sincere thanks to my team members for their hard work over the past three months, as well as to the competition organizers. Here, I present a summary of our solution (24th place, LB score: 0.694).
 
-We trained regressors and classifiers separately, then integrated their outputs in the ensemble.
+We trained regressors and classifiers separately and then integrated their outputs into the ensemble.
 
 #### Solution Overview
 
@@ -63,7 +63,7 @@ We trained regressors and classifiers separately, then integrated their outputs 
 
 ##### Feature Engineering
 
-By training CAT and LGBM, we found that karnofsky_score and comorbidity_score are always in the top three in feature importance, so we designed the following features in the new feature engineering:
+By training CAT and LGBM, we found that *karnofsky_score* and *comorbidity_score* were always among the top three in feature importance, so we designed the following features in the new feature engineering:
 
 ```bash
 df["KPS_Bin"] = pd.cut(df["karnofsky_score"], bins=[0, 10, 50, 80, 100], labels=["Critical", "Severely_Dependent", "Partially_Independent", "Healthy"], right=False)
@@ -74,13 +74,13 @@ df["KPS_Comorbidity_sum"] = df["karnofsky_score"] + df["comorbidity_score"]
 df["KPS_Multi_Comorbidity"] = df["karnofsky_score"] * df["comorbidity_score"]
 ```
 
-Inspired by Chris's idea of joint features, due to resource constraints, we only searched for the combined features of all categorical features, one of which was useful:
+Inspired by Chris's idea of joint features, we only searched for combined features of all categorical features due to resource constraints, and one of them proved to be useful.
 
 ```bash
 df["tbi_status+gvhd_proph"] = df["tbi_status"].astype(str) + '_' + df["gvhd_proph"].astype(str)
 ```
 
-In addition, we also use KMeans to generate clustering features:
+In addition, we use KMeans to generate clustering features.
 
 ```bash
 def create_kmeans_features(train, test, n_clusters=8, cat_cols=None, num_cols=None, seed=42):
@@ -100,7 +100,7 @@ def create_kmeans_features(train, test, n_clusters=8, cat_cols=None, num_cols=No
     return train, test
 ```
 
-Inspired by [this notebook](https://www.kaggle.com/code/ambrosm/esp-eda-which-makes-sense), the model doesn’t score well for white people, Octopus210 builds features about white people:
+Inspired by [this notebook](https://www.kaggle.com/code/ambrosm/esp-eda-which-makes-sense), we observed that the model doesn’t score well for white people. To address this, Octopus210 built features specifically for white people.
 
 ```bash
 def race_group_white_FE(df, disease_rank_df=None, conditioning_rank_df=None):
@@ -133,56 +133,56 @@ def race_group_white_FE(df, disease_rank_df=None, conditioning_rank_df=None):
     return df, disease_rank_df, conditioning_rank_df
 ```
 
-We also created ranking factors for the following features: 'donor_age', 'age_at_hct', 'prim_disease_hct', 'year_hct' and built tf-idf features for "conditioning_intensity", "dri_score", "sex_match" in the categorical features. 
+We also created ranking factors for the following features: *donor_age*, *age_at_hct*, *prim_disease_hct*, and *year_hct*, and built TF-IDF features for *conditioning_intensity*, *dri_score*, and *sex_match* in the categorical features.
 
-Finally, we checked the feature importance and selected 'tfidf_conditioning_intensity_5', 'tfidf_conditioning_intensity_14', 'tfidf_dri_score_9', 'tfidf_dri_score_10', 'tfidf_sex_match_1' (tfidf ranks high in feature importance).
+Next, we checked the feature importance and selected *tfidf_conditioning_intensity_5*, *tfidf_conditioning_intensity_14*, *tfidf_dri_score_9*, *tfidf_dri_score_10*, and *tfidf_sex_match_1*, as TF-IDF ranked high in feature importance.
 
-Finally, we map all categorical features into one-hot encoding, achieving a single CAT model score of LB=688
+Finally, we mapped all categorical features into one-hot encoding, achieving a single CAT model score of LB = 0.688.
 
 #### Regressors
 
 - **GBDTs (CAT, LGB, XGB) for 8 targets:**
 
-	Inspired by public kernels, these models were trained with a few FE here.
+	Inspired by public kernels, these models were trained with some feature engineering (FE).
 
 - **AutoML models for 8 targets:**
 
-	We used AutoGluon with a few FE also here.
+	We used AutoGluon with some feature engineering as well.
 
 - **CatBoost models for 4 targets with extensive feature engineering:**
 
-	These models were tuned for both CV and LB performance.
+	These models were tuned for both cross-validation (CV) and leaderboard (LB) performance.
 
 - **AutoML models for 4 targets with extensive feature engineering:**
 
-	Autogluon, the same as above.
+	We used AutoGluon, similar to the approach above.
 
 - **Pairwise Rankloss NN (PRL NN):** 
 
-  (1) Public ones with some FE.
+  (1) Public models with some feature engineering.
 
-  (2) Some modified ones, emphasizing data pairs with ``efs=1`` and giving more weight to pairs corresponding to races with poor performance (like white).
+  (2) Modified versions that emphasize data pairs with `efs=1` and assign more weight to pairs corresponding to races with poor performance (e.g., white).
 
 #### Classifiers
 
 - **GBDTs (CAT, LGB, XGB)**
-- **AutoML (Autogluon)**
+- **AutoML (AutoGluon)**
 
 #### Stacking with Meta-Model
 
-We consolidated the outputs of our regressors and classifiers respectively using stacking techniques:
+We consolidated the outputs of our regressors and classifiers separately using stacking techniques:
 
 - **For Regressors:**
 
-	A multi-task Elastic Net was used as a meta-model for the 8 targets. Its inputs were standardized outputs from the individual models (excluding the custom PRL NNs, because we use these at the final stage).
+	A multi-task Elastic Net was used as a meta-model for the 8 targets. Its inputs were the standardized outputs from the individual models, excluding the custom PRL NNs, as these were used at the final stage.
 
 - **For Classifiers:**
 
-	GBDT preds were stacked via Logistic Regression and subsequently combined with AutoGluon’s predictions using a weighted average.
+	GBDT predictions were stacked using Logistic Regression and then combined with AutoGluon’s predictions through a weighted average.
 
 #### Post-Processing
 
-To refine the Elastic Net outputs, we applied post-processing adjustments based on the classifier’s probability predictions. Specifically, prediction values with a high probability of ``efs=0`` were reduced. The following code snippet illustrates the adjustment:
+To refine the Elastic Net outputs, we applied post-processing adjustments based on the classifier’s probability predictions. Specifically, prediction values with a high probability of `efs=0` were decreased. The following code snippet illustrates the adjustment:
 
 ```ba
 for col in target_columns:
@@ -197,17 +197,17 @@ for col in target_columns:
     df_elastic_net_oof[col] = df_elastic_net_oof.apply(apply_adjustment, axis=1)
 ```
 
-The parameters (alpha, beta, theta, and gamma) were optimized race-by-race using Optuna. Our objective function was designed to maximize the average evaluation over multiple random subsamples to mitigate overfitting.
+The parameters (*alpha*, *beta*, *theta*, and *gamma*) were optimized race-by-race using Optuna. Our objective function was designed to maximize the average evaluation over multiple random subsamples to mitigate overfitting.
 
-And after the post-processing, we performed a weighted mean ensemble of 8 target outputs to one unified prediction.
+After post-processing, we performed a weighted mean ensemble of the 8 target outputs into a single unified prediction.
 
 #### Integration of Custom PRL NN
 
-After that, we integrated a custom PRL NN — with a loss function that strongly emphasizes ``efs=1`` — with a small weight. This integration was applied only to data whose efs probability exceeded the race-specific threshold of max F1 score.
+After that, we integrated a custom PRL NN — with a loss function that strongly emphasizes `efs=1` — with a small weight. This integration was applied only to data where the `efs` probability exceeded the race-specific threshold for the maximum F1 score.
 
-Additionally, to boost our CV score a little more, we blended in predictions from another custom PRL NN (which achieved a CV score of 0.682) that was effective for weaker races giving them more weights.
+Additionally, to further boost our CV score, we blended in predictions from another custom PRL NN (which achieved a CV score of 0.682). This model was particularly effective for weaker races, giving them more weight.
 
-#### What didn't work
+#### What Didn't Work?
 
 - Fine-tune language models
 
@@ -215,18 +215,18 @@ Additionally, to boost our CV score a little more, we blended in predictions fro
 
 #### Submission Strategy
 
- Our final submission was determined by selecting the best CV and the best LB:
+Our final submission was determined by selecting the best CV and the best LB:
 
-- **Best CV:** CV 0.6908 / public LB 0.690
-- **Best LB:** CV 0.6853 / public LB 0.694
+- **Best CV:** CV 0.6908 / Public LB 0.690
+- **Best LB:** CV 0.6853 / Public LB 0.694
 
-The best CV solution is the one described above. The best public LB is an ensemble that used fewer models, and a more naive manually clipped post-processing approach. 
+The best CV solution is the one described above. The best public LB solution was an ensemble that used fewer models and a more naive, manually clipped post-processing approach.
 
 #### "Trust CV"
 
-The private LB scores were:
+The Private LB scores were:
 
 - **Best CV**: 0.694
 - **Best LB**: 0.690
 
-This result validates the effectiveness of our “Trust CV” strategy. Although we experienced some anxiety due to declining LB scores during the final stages of the competition, trusting CV guided us to win silver.
+This result validates the effectiveness of our “Trust CV” strategy. Although we experienced some anxiety due to declining LB scores during the final stages of the competition, trusting CV ultimately guided us to win silver.
