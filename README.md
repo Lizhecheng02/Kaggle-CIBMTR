@@ -34,6 +34,10 @@ kaggle competitions download -c equity-post-HCT-survival-predictions
 unzip equity-post-HCT-survival-predictions.zip
 ```
 
+#### This Repo
+
+You could try the feature selection and LLM fine-tuning code in this repo.
+
 #### Submissions
 
 The best final submissions are located in the ``submissions`` folder.
@@ -62,12 +66,12 @@ We trained regressors and classifiers separately, then integrated their outputs 
 By training CAT and LGBM, we found that karnofsky_score and comorbidity_score are always in the top three in feature importance, so we designed the following features in the new feature engineering:
 
 ```bash
-df["KPS_Bin"] = pd.cut(df["karnofsky_score"],bins=[0, 10, 50, 80, 100],labels=["Critical", "Severely_Dependent", "Partially_Independent", "Healthy"],right=False)
-df["Comorbidity_Bin"] = pd.cut(df["comorbidity_score"],bins=[0, 2, 5, np.inf],labels=["Low", "Medium", "High"],right=False) # 1.528398
+df["KPS_Bin"] = pd.cut(df["karnofsky_score"], bins=[0, 10, 50, 80, 100], labels=["Critical", "Severely_Dependent", "Partially_Independent", "Healthy"], right=False)
+df["Comorbidity_Bin"] = pd.cut(df["comorbidity_score"], bins=[0, 2, 5, np.inf], labels=["Low", "Medium", "High"], right=False)
 df["Combined_Bin"] = df["KPS_Bin"].astype(str) + "_" + df["Comorbidity_Bin"].astype(str) 
-df["KPS_Minus_Comorbidity"] = df["karnofsky_score"] - df["comorbidity_score"] # 2.166210
-df["KPS_Comorbidity_sum"] = df["karnofsky_score"] + df["comorbidity_score"] # 1.533922
-df["KPS_Multi_Comorbidity"] = df["karnofsky_score"] * df["comorbidity_score"] # 0.99
+df["KPS_Minus_Comorbidity"] = df["karnofsky_score"] - df["comorbidity_score"]
+df["KPS_Comorbidity_sum"] = df["karnofsky_score"] + df["comorbidity_score"]
+df["KPS_Multi_Comorbidity"] = df["karnofsky_score"] * df["comorbidity_score"]
 ```
 
 Inspired by Chris's idea of joint features, due to resource constraints, we only searched for the combined features of all categorical features, one of which was useful:
@@ -79,7 +83,6 @@ df["tbi_status+gvhd_proph"] = df["tbi_status"].astype(str) + '_' + df["gvhd_prop
 In addition, we also use KMeans to generate clustering features:
 
 ```bash
-from sklearn.cluster import KMeans
 def create_kmeans_features(train, test, n_clusters=8, cat_cols=None, num_cols=None, seed=42):
     if cat_cols is None:
         cal_cols = []
@@ -87,8 +90,8 @@ def create_kmeans_features(train, test, n_clusters=8, cat_cols=None, num_cols=No
         num_cols = []
     cols = cat_cols + num_cols    
     train_encoded = pd.get_dummies(train[cols], columns=cat_cols, drop_first=True)
-    test_encoded  = pd.get_dummies(test[cols],  columns=cat_cols, drop_first=True)
-    test_encoded  = test_encoded.reindex(columns=train_encoded.columns,fill_value=0)
+    test_encoded  = pd.get_dummies(test[cols], columns=cat_cols, drop_first=True)
+    test_encoded  = test_encoded.reindex(columns=train_encoded.columns, fill_value=0)
     kmeans = KMeans(n_clusters=n_clusters, random_state=seed)
     train_clusters = kmeans.fit_predict(train_encoded)
     train['kmeans_cluster'] = train_clusters
@@ -101,8 +104,6 @@ Inspired by [this notebook](https://www.kaggle.com/code/ambrosm/esp-eda-which-ma
 
 ```bash
 def race_group_white_FE(df, disease_rank_df=None, conditioning_rank_df=None):
-    # Trainデータの処理
-    # "White" = 2
     if disease_rank_df is None:
         disease_rank_df = df[df['race_group'] == "White"]['prim_disease_hct'].value_counts().reset_index()
         disease_rank_df.columns = ['prim_disease_hct', 'count']
@@ -113,17 +114,14 @@ def race_group_white_FE(df, disease_rank_df=None, conditioning_rank_df=None):
         conditioning_rank_df.columns = ['conditioning_intensity', 'count']
         conditioning_rank_df['White_conditioning_rank'] = conditioning_rank_df['count'].rank(method='dense', ascending=False).astype(int)
 
-    # prim_disease_hct のランクを適用
     df = df.merge(disease_rank_df[['prim_disease_hct', 'White_disease_rank']], on='prim_disease_hct', how='left')
     max_disease_rank = disease_rank_df['White_disease_rank'].max() if not disease_rank_df.empty else 0
     df['White_disease_rank'] = df['White_disease_rank'].fillna(max_disease_rank + 1).astype(int)
 
-    # conditioning_intensity のランクを適用
     df = df.merge(conditioning_rank_df[['conditioning_intensity', 'White_conditioning_rank']], on='conditioning_intensity', how='left')
     max_conditioning_rank = conditioning_rank_df['White_conditioning_rank'].max() if not conditioning_rank_df.empty else 0
     df['White_conditioning_rank'] = df['White_conditioning_rank'].fillna(max_conditioning_rank + 1).astype(int)
 
-    # 新しい特徴量の作成
     df['comorbidity_score*WDR'] = df['comorbidity_score'] * df['White_disease_rank']
     df['karnofsky_score/WDR'] = df['karnofsky_score'] / df['White_disease_rank']
     df['donor_age*WDR'] = df['donor_age'] * df['White_disease_rank']
@@ -135,7 +133,9 @@ def race_group_white_FE(df, disease_rank_df=None, conditioning_rank_df=None):
     return df, disease_rank_df, conditioning_rank_df
 ```
 
-We also created ranking factors for the following features: 'donor_age', 'age_at_hct', 'prim_disease_hct', 'year_hct' and built tf-idf features for "conditioning_intensity", "dri_score", "sex_match" in the categorical features. Finally, we checked the feature importance and selected 'tfidf_conditioning_intensity_5', 'tfidf_conditioning_intensity_14', 'tfidf_dri_score_9', 'tfidf_dri_score_10', 'tfidf_sex_match_1' (tfidf ranks high in feature importance).
+We also created ranking factors for the following features: 'donor_age', 'age_at_hct', 'prim_disease_hct', 'year_hct' and built tf-idf features for "conditioning_intensity", "dri_score", "sex_match" in the categorical features. 
+
+Finally, we checked the feature importance and selected 'tfidf_conditioning_intensity_5', 'tfidf_conditioning_intensity_14', 'tfidf_dri_score_9', 'tfidf_dri_score_10', 'tfidf_sex_match_1' (tfidf ranks high in feature importance).
 
 Finally, we map all categorical features into one-hot encoding, achieving a single CAT model score of LB=688
 
