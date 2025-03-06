@@ -40,5 +40,5 @@ The best final submissions are located in the ``submissions`` folder.
 
 #### Conclusion
 
-(1) The NLP-based method does not work for this competition.
-(2) Feature selection does not work very well, probably because there is a lot of synthetic data in the training dataset.
+- The NLP-based method does not work for this competition.
+- Feature selection does not work very well, probably because there is a lot of synthetic data in the training dataset.
