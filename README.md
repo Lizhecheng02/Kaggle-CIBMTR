@@ -151,11 +151,11 @@ Finally, we mapped all categorical features into one-hot encoding, achieving a s
 
 - **CatBoost models for 4 targets with extensive feature engineering:**
 
-	These models were tuned for both cross-validation (CV) and leaderboard (LB) performance.
+	These models were tuned for both CV and LB performance.
 
 - **AutoML models for 4 targets with extensive feature engineering:**
 
-	We used AutoGluon, similar to the approach above.
+	We also used AutoGluon, similar to the approach above.
 
 - **Pairwise Rankloss NN (PRL NN):** 
 
@@ -211,7 +211,7 @@ Additionally, to further boost our CV score, we blended in predictions from anot
 
 - Fine-tune language models
 
-	We fine-tuned both the DeBERTa-v3 and Gemma models according to the specific input format of the tabular information (converted into string inputs) for both 10-fold classification and regression tasks, relying solely on either EFS or target transformation results for the last two columns. However, these models did not perform well.
+	We fine-tuned both the DeBERTa-v3 and Gemma models according to the specific input format of the tabular information (converted into string inputs) for both 10-fold classification and regression tasks, relying solely on either `efs` or target transformation results for the last two columns. However, these models did not perform well.
 
 #### Submission Strategy
 
