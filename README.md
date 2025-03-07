@@ -49,7 +49,7 @@ The best final submissions are located in the ``submissions`` folder.
 
 ---------------------------------------------------------------------------------------------------------------------------------------
 
-### 24th Solution: Ensemble and Post-Processing
+### [24th Solution: Ensemble and Post-Processing](https://www.kaggle.com/competitions/equity-post-HCT-survival-predictions/discussion/566809)
 
 First, congratulations to the competition winners, and sincere thanks to my team members for their hard work over the past three months, as well as to the competition organizers. Here, I present a summary of our solution (24th place, LB score: 0.694).
 
